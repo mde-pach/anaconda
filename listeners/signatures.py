@@ -64,9 +64,13 @@ class AnacondaSignaturesEventListener(sublime_plugin.EventListener):
             logging.error(error)
 
     def prepare_data_tooltip(
-            self, view: sublime.View, data: Dict[str, Any]) -> Any:
+            self, view: sublime.View, data: Dict[str, Any], **kwargs) -> Any:
         """Prepare the returned data for tooltips
         """
+
+        popup_kwargs = {}
+        if "location" in kwargs:
+            popup_kwargs["location"] = kwargs["location"]
 
         merge_doc = get_settings(view, 'merge_signatures_and_doc')
         if (data['success'] and 'No docstring' not
@@ -78,7 +82,7 @@ class AnacondaSignaturesEventListener(sublime_plugin.EventListener):
                 self.doc = ''
                 if self._signature_excluded(self.signature):
                     return
-                return self._show_popup(view)
+                return self._show_popup(view, **popup_kwargs)
 
             if merge_doc:
                 self.doc = '<br>'.join(data['doc'].split('<br>')[i:]).replace(
@@ -88,7 +92,7 @@ class AnacondaSignaturesEventListener(sublime_plugin.EventListener):
                 data['doc'].split('<br>')[0:i])
             if self.signature is not None and self.signature != "":
                 if not self._signature_excluded(self.signature):
-                    return self._show_popup(view)
+                    return self._show_popup(view, **popup_kwargs)
 
         if view.is_popup_visible():
             view.hide_popup()
@@ -111,7 +115,37 @@ class AnacondaSignaturesEventListener(sublime_plugin.EventListener):
 
             return self._show_status(view)
 
-    def _show_popup(self, view: sublime.View) -> None:
+    def on_hover(self, view: sublime.View, point: int, hover_zone: int) -> None:
+        """Show object signature on hover if sublime text version is >= 3070
+        """
+
+        # and get_settings(view, 'anaconda_signature_on_hover', False):
+        if hover_zone == sublime.HOVER_TEXT and not view.is_popup_visible():
+            try:
+                data = prepare_send_data(view.rowcol(point), 'doc', 'jedi')
+                use_tooltips = get_settings(
+                    view, 'enable_signatures_tooltip', True
+                )
+                st_version = int(sublime.version())
+                if st_version >= 3070:
+                    data['html'] = use_tooltips
+
+                currying = partial(self.prepare_data_status, view)
+                if use_tooltips and st_version >= 3070:
+                    currying = partial(
+                        self.prepare_data_tooltip, view, location=point
+                    )
+
+                data["settings"] = {
+                    'python_interpreter': get_settings(view, 'python_interpreter', ''),
+                    'location': point,
+                }
+                Worker().execute(currying, **data)
+            except Exception as error:
+                print(error)
+                logging.error(error)
+
+    def _show_popup(self, view: sublime.View, **kwargs) -> None:
         """Show message in a popup if sublime text version is >= 3070
         """
 
@@ -124,7 +158,8 @@ class AnacondaSignaturesEventListener(sublime_plugin.EventListener):
 
         css = get_settings(view, 'anaconda_tooltip_theme', 'popup')
         Tooltip(css).show_tooltip(
-            view, display_tooltip, content, partial(self._show_status, view))
+            view, display_tooltip, content, partial(self._show_status, view), **kwargs
+        )
 
     def _show_status(self, view: sublime.View) -> None:
         """Show message in the view status bar

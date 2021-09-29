@@ -30,6 +30,13 @@ Anaconda works out of the box but there are multitude of options and features th
 * [Linting theme customization](http://damnwidget.github.io/anaconda/IDE/#toc_50)
 * [Using Vagrant Environments](http://damnwidget.github.io/anaconda/vagrant/)
 
+This project must be installed from this repository because it's just a fork of the original one. All Anaconda preferences will be kept.
+```bash
+cd ~/.config/sublime-text-3/Packages/
+rm -rf anaconda
+git clone git@github.com:mde-pach/anaconda.git Anaconda-mde-pach
+```
+
 ## License
 This program is distributed under the terms of the GNU GPL v3. See the [LICENSE][license] file for more details.
 

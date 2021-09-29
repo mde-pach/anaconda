@@ -10,7 +10,7 @@ from string import Template
 import sublime
 
 from .helpers import get_settings
-from ._typing import Callable, Union, Dict
+from ._typing import Callable, Union, Dict, Any
 
 
 class Tooltip(object):
@@ -33,18 +33,20 @@ class Tooltip(object):
             self._load_tooltips()
             Tooltip.loaded = True
 
-    def show_tooltip(self, view: sublime.View, tooltip: str, content: Dict[str, str], fallback: Callable) -> None:  # noqa
+    def show_tooltip(self, view: sublime.View, tooltip: str, content: Dict[str, str], fallback: Callable, **kwargs: Dict[Any, Any]) -> None:  # noqa
         """Generates and display a tooltip or pass execution to fallback
         """
 
         st_ver = int(sublime.version())
         if st_ver < 3070:
             return fallback()
-
         width = get_settings(view, 'font_size', 8) * 75
-        kwargs = {'location': -1, 'max_width': width if width < 900 else 900}
+        kwargs = {
+            'location': kwargs.get('location', -1),
+            'max_width': kwargs.get('max_width', width if width < 900 else 900)
+        }
         if st_ver >= 3071:
-            kwargs['flags'] = sublime.COOPERATE_WITH_AUTO_COMPLETE
+            kwargs['flags'] = sublime.COOPERATE_WITH_AUTO_COMPLETE | sublime.HIDE_ON_MOUSE_MOVE_AWAY
         text = self._generate(tooltip, content)
         if text is None:
             return fallback()
